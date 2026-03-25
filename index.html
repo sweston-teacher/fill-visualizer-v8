@@ -29,9 +29,9 @@
         /* Draggable number input — the core interaction */
         .drag-num {
             background: rgba(255,255,255,0.15); border: 2px solid rgba(255,255,255,0.2);
-            border-radius: 4px; color: #fff; font-family: 'Silkscreen', monospace;
-            font-size: 18px; text-align: center; outline: none;
-            width: 4rem; padding: 6px 2px; cursor: ns-resize; user-select: none;
+            border-radius: 3px; color: #fff; font-family: 'Silkscreen', monospace;
+            font-size: 13px; text-align: center; outline: none;
+            width: 3rem; padding: 3px 2px; cursor: ns-resize; user-select: none;
             transition: border-color 0.15s, background 0.15s;
         }
         .drag-num:hover { border-color: rgba(255,255,255,0.5); background: rgba(255,255,255,0.2); }
@@ -52,100 +52,77 @@
 </head>
 <body class="text-white">
 
-<div class="fixed inset-0 z-10 flex flex-col lg:flex-row pointer-events-none">
+<!-- Compact floating panel — bottom right, minimal footprint -->
+<div id="ui-panel" class="fixed bottom-3 right-3 z-10 pointer-events-auto bg-[#2a2a3e] bg-opacity-90 backdrop-blur-sm rounded-lg shadow-xl">
 
-    <!-- CONTROLS PANEL -->
-    <div id="ui-panel" class="pointer-events-auto bg-[#2a2a3e] lg:w-[420px] w-full lg:h-full flex-shrink-0 flex flex-col">
-
-        <!-- Title bar -->
-        <div class="bg-[#3a3a52] px-4 py-2 flex items-center justify-between border-b-2 border-[#1a1a2e]">
-            <h1 class="font-mc text-base text-green-300">Fill Visualizer</h1>
-            <div class="flex items-center gap-3 text-sm">
-                <label class="flex items-center gap-1 text-gray-200 cursor-pointer">
-                    <input type="radio" name="mode" value="world" id="modeWorld" class="accent-green-500 w-4 h-4" checked>
-                    <span class="font-mc">World</span>
-                </label>
-                <label class="flex items-center gap-1 text-gray-200 cursor-pointer">
-                    <input type="radio" name="mode" value="relative" id="modeRelative" class="accent-green-500 w-4 h-4">
-                    <span class="font-mc">Relative</span>
-                </label>
-            </div>
-        </div>
-        <div class="grass-strip"></div>
-
-        <div class="flex-1 overflow-y-auto p-4 flex flex-col gap-3">
-
-            <!-- SHAPE INDICATOR -->
-            <div id="shapeIndicator" class="mc-border px-4 py-3 text-center bg-[#333350]">
-                <div id="shapeLabel" class="font-mc text-xl text-white">Single Block</div>
-                <div id="shapeDesc" class="text-sm text-gray-300 mt-1">From and To are the same spot</div>
-            </div>
-
-            <!-- Drag instruction -->
-            <p class="text-sm text-gray-400 text-center">Drag a number up or down to change it</p>
-
-            <!-- ===== MAKECODE FILL BLOCK ===== -->
-            <!-- Looks like the real block. Each number has its axis + direction label RIGHT ON IT -->
-            <div class="mc-border overflow-hidden" style="border-color: var(--mc-green-dark); border-top-color: var(--mc-green-light); border-left-color: var(--mc-green-light);">
-
-                <!-- Block header -->
-                <div class="px-4 py-2 flex items-center justify-between" style="background: var(--mc-green);">
-                    <span class="font-mc text-base text-green-100">fill with</span>
-                </div>
-
-                <!-- Column headers — shared across from and to -->
-                <div class="grid grid-cols-[3.5rem_3rem_1fr_1fr_1fr] gap-2 px-4 py-2 items-end" style="background: var(--mc-green-dark);">
-                    <div></div>
-                    <div></div>
-                    <div class="text-center">
-                        <div class="font-mc text-sm text-red-400">X</div>
-                        <div class="font-mc text-xs text-red-300">W- E+</div>
-                    </div>
-                    <div class="text-center">
-                        <div class="font-mc text-sm text-green-400">Y</div>
-                        <div class="font-mc text-xs text-green-300">Dn- Up+</div>
-                    </div>
-                    <div class="text-center">
-                        <div class="font-mc text-sm text-blue-400">Z</div>
-                        <div class="font-mc text-xs text-blue-300">N- S+</div>
-                    </div>
-                </div>
-
-                <!-- FROM row -->
-                <div class="grid grid-cols-[3.5rem_3rem_1fr_1fr_1fr] gap-2 px-4 py-3 items-center" style="background: var(--mc-green-dark);">
-                    <span class="font-mc text-lg text-cyan-300">from</span>
-                    <span id="mk-from-mode" class="font-mc text-sm text-green-300"></span>
-                    <div class="flex justify-center"><span id="mk-from-x-prefix" class="font-mc text-sm text-green-300 mr-0.5"></span><input id="mk-from-x" type="text" inputmode="numeric" value="0" class="drag-num" data-slider="x1" /></div>
-                    <div class="flex justify-center"><span id="mk-from-y-prefix" class="font-mc text-sm text-green-300 mr-0.5"></span><input id="mk-from-y" type="text" inputmode="numeric" value="-60" class="drag-num" data-slider="y1" data-is-y="true" /></div>
-                    <div class="flex justify-center"><span id="mk-from-z-prefix" class="font-mc text-sm text-green-300 mr-0.5"></span><input id="mk-from-z" type="text" inputmode="numeric" value="0" class="drag-num" data-slider="z1" /></div>
-                </div>
-
-                <div class="h-[2px]" style="background: var(--mc-green);"></div>
-
-                <!-- TO row -->
-                <div class="grid grid-cols-[3.5rem_3rem_1fr_1fr_1fr] gap-2 px-4 py-3 items-center" style="background: var(--mc-green-dark);">
-                    <span class="font-mc text-lg text-yellow-300">to</span>
-                    <span id="mk-to-mode" class="font-mc text-sm text-green-300"></span>
-                    <div class="flex justify-center"><span id="mk-to-x-prefix" class="font-mc text-sm text-green-300 mr-0.5"></span><input id="mk-to-x" type="text" inputmode="numeric" value="0" class="drag-num" data-slider="x2" /></div>
-                    <div class="flex justify-center"><span id="mk-to-y-prefix" class="font-mc text-sm text-green-300 mr-0.5"></span><input id="mk-to-y" type="text" inputmode="numeric" value="-60" class="drag-num" data-slider="y2" data-is-y="true" /></div>
-                    <div class="flex justify-center"><span id="mk-to-z-prefix" class="font-mc text-sm text-green-300 mr-0.5"></span><input id="mk-to-z" type="text" inputmode="numeric" value="0" class="drag-num" data-slider="z2" /></div>
-                </div>
-
-                <!-- mode spans are now inline in from/to labels -->
-            </div>
-
-            <!-- Ground level -->
-            <div id="groundRow" class="flex items-center gap-3 px-1">
-                <label for="groundLevel" class="font-mc text-sm text-gray-300">Ground Y:</label>
-                <input id="groundLevel" type="text" inputmode="numeric" pattern="-?[0-9]*" value="-60"
-                    class="drag-num w-20" data-ground="true" />
-            </div>
-
+    <!-- Title + mode -->
+    <div class="bg-[#3a3a52] px-2 py-1 flex items-center justify-between rounded-t-lg gap-2">
+        <h1 class="font-mc text-[11px] text-green-300">Fill Visualizer</h1>
+        <div class="flex items-center gap-2 text-[10px]">
+            <label class="flex items-center gap-1 text-gray-200 cursor-pointer">
+                <input type="radio" name="mode" value="world" id="modeWorld" class="accent-green-500 w-3 h-3" checked>
+                <span class="font-mc">World</span>
+            </label>
+            <label class="flex items-center gap-1 text-gray-200 cursor-pointer">
+                <input type="radio" name="mode" value="relative" id="modeRelative" class="accent-green-500 w-3 h-3">
+                <span class="font-mc">Rel</span>
+            </label>
         </div>
     </div>
+    <div class="grass-strip" style="height:3px;"></div>
 
-    <!-- 3D VIEWPORT -->
-    <div class="flex-1 pointer-events-auto min-h-[250px]"></div>
+    <div class="p-2 flex flex-col gap-1.5">
+
+        <!-- Shape indicator — inline -->
+        <div id="shapeIndicator" class="mc-border px-2 py-1 text-center bg-[#333350]" style="border-width:2px;">
+            <span id="shapeLabel" class="font-mc text-sm text-white">Single Block</span>
+            <span id="shapeDesc" class="text-[10px] text-gray-300 ml-1">From and To are the same spot</span>
+        </div>
+
+        <!-- MakeCode fill block — compact -->
+        <div class="mc-border overflow-hidden" style="border-width:2px; border-color: var(--mc-green-dark); border-top-color: var(--mc-green-light); border-left-color: var(--mc-green-light);">
+
+            <div class="px-2 py-1" style="background: var(--mc-green);">
+                <span class="font-mc text-[11px] text-green-100">fill with</span>
+            </div>
+
+            <!-- Column headers -->
+            <div class="grid grid-cols-[2.5rem_2.2rem_1fr_1fr_1fr] gap-1 px-2 py-1 items-end" style="background: var(--mc-green-dark);">
+                <div></div><div></div>
+                <div class="text-center"><div class="font-mc text-[11px] text-red-400">X</div><div class="font-mc text-[9px] text-red-300">W- E+</div></div>
+                <div class="text-center"><div class="font-mc text-[11px] text-green-400">Y</div><div class="font-mc text-[9px] text-green-300">Dn- Up+</div></div>
+                <div class="text-center"><div class="font-mc text-[11px] text-blue-400">Z</div><div class="font-mc text-[9px] text-blue-300">N- S+</div></div>
+            </div>
+
+            <!-- FROM -->
+            <div class="grid grid-cols-[2.5rem_2.2rem_1fr_1fr_1fr] gap-1 px-2 py-1.5 items-center" style="background: var(--mc-green-dark);">
+                <span class="font-mc text-xs text-cyan-300">from</span>
+                <span id="mk-from-mode" class="font-mc text-[10px] text-green-300"></span>
+                <div class="flex justify-center"><span id="mk-from-x-prefix" class="font-mc text-[10px] text-green-300"></span><input id="mk-from-x" type="text" inputmode="numeric" value="0" class="drag-num" data-slider="x1" /></div>
+                <div class="flex justify-center"><span id="mk-from-y-prefix" class="font-mc text-[10px] text-green-300"></span><input id="mk-from-y" type="text" inputmode="numeric" value="-60" class="drag-num" data-slider="y1" data-is-y="true" /></div>
+                <div class="flex justify-center"><span id="mk-from-z-prefix" class="font-mc text-[10px] text-green-300"></span><input id="mk-from-z" type="text" inputmode="numeric" value="0" class="drag-num" data-slider="z1" /></div>
+            </div>
+
+            <div class="h-[1px]" style="background: var(--mc-green);"></div>
+
+            <!-- TO -->
+            <div class="grid grid-cols-[2.5rem_2.2rem_1fr_1fr_1fr] gap-1 px-2 py-1.5 items-center" style="background: var(--mc-green-dark);">
+                <span class="font-mc text-xs text-yellow-300">to</span>
+                <span id="mk-to-mode" class="font-mc text-[10px] text-green-300"></span>
+                <div class="flex justify-center"><span id="mk-to-x-prefix" class="font-mc text-[10px] text-green-300"></span><input id="mk-to-x" type="text" inputmode="numeric" value="0" class="drag-num" data-slider="x2" /></div>
+                <div class="flex justify-center"><span id="mk-to-y-prefix" class="font-mc text-[10px] text-green-300"></span><input id="mk-to-y" type="text" inputmode="numeric" value="-60" class="drag-num" data-slider="y2" data-is-y="true" /></div>
+                <div class="flex justify-center"><span id="mk-to-z-prefix" class="font-mc text-[10px] text-green-300"></span><input id="mk-to-z" type="text" inputmode="numeric" value="0" class="drag-num" data-slider="z2" /></div>
+            </div>
+        </div>
+
+        <!-- Ground Y -->
+        <div id="groundRow" class="flex items-center gap-2">
+            <label for="groundLevel" class="font-mc text-[10px] text-gray-400">Ground Y:</label>
+            <input id="groundLevel" type="text" inputmode="numeric" pattern="-?[0-9]*" value="-60"
+                class="drag-num w-14" data-ground="true" />
+        </div>
+
+    </div>
 </div>
 
 <!-- Hidden range inputs — sliders are now invisible, just used as state -->
