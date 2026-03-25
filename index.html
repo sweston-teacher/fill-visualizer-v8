@@ -138,7 +138,7 @@
             <div id="groundRow" class="flex items-center gap-3 px-1">
                 <label for="groundLevel" class="font-mc text-sm text-gray-300">Ground Y:</label>
                 <input id="groundLevel" type="text" inputmode="numeric" pattern="-?[0-9]*" value="-60"
-                    class="w-20 px-3 py-1 rounded-sm bg-[#333] border-2 border-[#555] text-base text-gray-100 font-mono focus:outline-none focus:border-green-500" />
+                    class="drag-num w-20" data-ground="true" />
             </div>
 
         </div>
@@ -275,6 +275,15 @@
     }
 
     function applyDragValue(input, newVal, skipDisplayUpdate) {
+        // Ground Y input — no slider, just set groundValue directly
+        if (input.dataset.ground === 'true') {
+            const clamped = Math.min(GROUND_MAX, Math.max(GROUND_MIN, Math.round(newVal)));
+            groundValue = clamped;
+            if (!skipDisplayUpdate && !input._userEditing) input.value = clamped;
+            updateFillBox(); updateCommandPreview();
+            return;
+        }
+
         const sliderId = input.dataset.slider;
         const isY = input.dataset.isY === 'true';
         const slider = sliders[sliderId];
