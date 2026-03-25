@@ -3,254 +3,306 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Minecraft Fill Command Visualizer v7</title>
-    <!-- 1. Load Tailwind CSS for styling -->
+    <title>Minecraft Fill Command Visualizer</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&display=swap" rel="stylesheet">
     <style>
-        /* Basic page setup */
-        body {
-            font-family: 'Inter', sans-serif;
-            margin: 0;
-            overflow: hidden; /* Prevent scrollbars */
-            background-color: #111827; /* Dark background */
-        }
-
-        /* Make the 3D canvas fill the background */
-        canvas {
-            position: fixed;
-            top: 0;
-            left: 0;
-            z-index: 0; /* Place it behind the UI */
-        }
-
-        /* Style for the 3D HTML labels */
+        :root { --mc-green: #4C7A4A; --mc-green-light: #5DA65B; --mc-green-dark: #3B5E39; }
+        body { font-family: 'Inter', sans-serif; margin: 0; overflow: hidden; background: #1a1a2e; }
+        .font-mc { font-family: 'Silkscreen', monospace; }
+        canvas { position: fixed; top: 0; left: 0; z-index: 0; }
         .label {
-            color: #FFF;
-            font-family: 'Inter', sans-serif;
-            font-size: 14px;
-            text-shadow: 0 0 5px #000;
-            padding: 4px;
-            background: rgba(0, 0, 0, 0.5);
-            border-radius: 4px;
+            color: #FFF; font-family: 'Silkscreen', monospace; font-size: 13px;
+            text-shadow: 2px 2px 0 #000, -1px -1px 0 #000;
+            padding: 3px 6px; background: rgba(0,0,0,0.6); border-radius: 2px;
+        }
+        .mc-border {
+            border: 3px solid #555;
+            border-top-color: #888; border-left-color: #777;
+            border-right-color: #333; border-bottom-color: #222;
+        }
+        .grass-strip {
+            height: 6px;
+            background: linear-gradient(to bottom, #5DA65B 0%, #5DA65B 50%, #8B6914 50%, #8B6914 100%);
         }
 
-        /* Make range sliders look better */
-        input[type="range"] {
-            -webkit-appearance: none;
-            appearance: none;
-            width: 100%;
-            height: 10px;
-            border-radius: 5px;
-            background: #4B5563; /* gray-600 */
-            outline: none;
-            opacity: 0.9;
-            -webkit-transition: .2s;
-            transition: opacity .2s;
+        /* Draggable number input — the core interaction */
+        .drag-num {
+            background: rgba(255,255,255,0.15); border: 2px solid rgba(255,255,255,0.2);
+            border-radius: 4px; color: #fff; font-family: 'Silkscreen', monospace;
+            font-size: 18px; text-align: center; outline: none;
+            width: 4rem; padding: 6px 2px; cursor: ns-resize; user-select: none;
+            transition: border-color 0.15s, background 0.15s;
         }
+        .drag-num:hover { border-color: rgba(255,255,255,0.5); background: rgba(255,255,255,0.2); }
+        .drag-num:focus { cursor: text; border-color: #7ddf7a; background: rgba(255,255,255,0.25); }
+        .drag-num.dragging { border-color: #7ddf7a; background: rgba(125,223,122,0.15); }
 
-        input[type="range"]:hover {
-            opacity: 1;
-        }
-
-        /* Custom slider thumb */
-        input[type="range"]::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            appearance: none;
-            width: 20px;
-            height: 20px;
-            border-radius: 50%;
-            background: #f0f0f0; /* White */
-            cursor: pointer;
-        }
-
-        input[type="range"]::-moz-range-thumb {
-            width: 20px;
-            height: 20px;
-            border-radius: 50%;
-            background: #f0f0f0; /* White */
-            cursor: pointer;
-        }
+        /* Panel scrolling */
+        #ui-panel { max-height: 100vh; overflow-y: auto; scrollbar-width: thin; scrollbar-color: #4B5563 transparent; }
+        #ui-panel::-webkit-scrollbar { width: 5px; }
+        #ui-panel::-webkit-scrollbar-thumb { background: #555; border-radius: 2px; }
     </style>
-    <!-- 2. Import three.js (the 3D library) -->
     <script type="importmap">
-        {
-            "imports": {
-                "three": "https://cdn.jsdelivr.net/npm/three@0.166.1/build/three.module.js",
-                "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.166.1/examples/jsm/"
-            }
-        }
+        { "imports": {
+            "three": "https://cdn.jsdelivr.net/npm/three@0.166.1/build/three.module.js",
+            "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.166.1/examples/jsm/"
+        }}
     </script>
 </head>
 <body class="text-white">
 
-    <!-- 3. UI Panel: This is the 'controller' for the fill command -->
-    <!-- Panel width reduced from max-w-2xl to max-w-md -->
-    <div class="fixed top-4 left-4 z-10 p-4 bg-gray-900 bg-opacity-80 backdrop-blur-sm rounded-2xl shadow-xl max-w-md w-full">
-        <h1 class="text-xl font-bold mb-3 text-center">Fill Command Visualizer v7</h1>
-        <p class="text-[11px] text-amber-200 text-center mb-3 uppercase tracking-wide">X and Z sliders only move forward (0-63) to keep builds in front of the player.</p>
-        <p class="text-xs text-gray-300 mb-4 text-center">Drag sliders to set the two corners. Click and drag the background to rotate. Scroll to zoom.</p>
+<div class="fixed inset-0 z-10 flex flex-col lg:flex-row pointer-events-none">
 
-        <!-- Command tools -->
-        <div class="flex flex-col gap-3 mb-4">
-            <div class="grid grid-cols-1 gap-3">
-                <div class="flex flex-wrap items-center gap-3">
-                    <label class="text-sm text-gray-200">Command type:</label>
-                    <div class="flex items-center gap-2">
-                        <label class="flex items-center gap-1 text-sm text-gray-100">
-                            <input type="radio" name="mode" value="relative" id="modeRelative" class="accent-cyan-500" checked>
-                            Relative (~)
-                        </label>
-                        <label class="flex items-center gap-1 text-sm text-gray-100">
-                            <input type="radio" name="mode" value="world" id="modeWorld" class="accent-cyan-500">
-                            World
-                        </label>
-                    </div>
-                </div>
-                <div id="groundRow" class="hidden flex flex-wrap items-center gap-3">
-                    <label for="groundLevel" class="text-sm text-gray-200">Ground level (Y):</label>
-                    <input id="groundLevel" type="text" inputmode="numeric" pattern="-?[0-9]*" value="0" class="w-28 px-3 py-1 rounded-md bg-gray-800 border border-gray-700 text-sm text-gray-100 focus:outline-none focus:ring-2 focus:ring-cyan-400" placeholder="0" />
-                </div>
-            </div>
-            <div class="rounded-lg bg-gray-800 bg-opacity-80 border border-gray-700 px-3 py-2 flex flex-col gap-2">
-                <div class="flex items-center justify-between">
-                    <p class="text-xs uppercase tracking-wide text-gray-400">MakeCode block values</p>
-                    <span id="valueModeLabel" class="text-[11px] text-gray-400">Relative (~)</span>
-                </div>
-                <div class="flex flex-col gap-2 text-sm">
-                    <div class="flex items-center gap-2 flex-wrap">
-                        <span class="font-semibold text-cyan-200 lowercase tracking-wide">from</span>
-                        <span id="mk-from-mode" class="text-[11px] tracking-wide text-gray-300 hidden">world</span>
-                        <div class="flex items-center gap-2 flex-wrap">
-                            <div class="flex items-center gap-1 px-3 py-1 rounded-full bg-gray-900 bg-opacity-60 border border-gray-700">
-                                <span id="mk-from-x-prefix" class="font-mono text-xs text-gray-300">~</span>
-                                <span id="mk-from-x" class="font-mono text-sm text-gray-100">0</span>
-                            </div>
-                            <div class="flex items-center gap-1 px-3 py-1 rounded-full bg-gray-900 bg-opacity-60 border border-gray-700">
-                                <span id="mk-from-y-prefix" class="font-mono text-xs text-gray-300">~</span>
-                                <span id="mk-from-y" class="font-mono text-sm text-gray-100">0</span>
-                            </div>
-                            <div class="flex items-center gap-1 px-3 py-1 rounded-full bg-gray-900 bg-opacity-60 border border-gray-700">
-                                <span id="mk-from-z-prefix" class="font-mono text-xs text-gray-300">~</span>
-                                <span id="mk-from-z" class="font-mono text-sm text-gray-100">0</span>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="flex items-center gap-2 flex-wrap">
-                        <span class="font-semibold text-yellow-200 lowercase tracking-wide">to</span>
-                        <span id="mk-to-mode" class="text-[11px] tracking-wide text-gray-300 hidden">world</span>
-                        <div class="flex items-center gap-2 flex-wrap">
-                            <div class="flex items-center gap-1 px-3 py-1 rounded-full bg-gray-900 bg-opacity-60 border border-gray-700">
-                                <span id="mk-to-x-prefix" class="font-mono text-xs text-gray-300">~</span>
-                                <span id="mk-to-x" class="font-mono text-sm text-gray-100">0</span>
-                            </div>
-                            <div class="flex items-center gap-1 px-3 py-1 rounded-full bg-gray-900 bg-opacity-60 border border-gray-700">
-                                <span id="mk-to-y-prefix" class="font-mono text-xs text-gray-300">~</span>
-                                <span id="mk-to-y" class="font-mono text-sm text-gray-100">0</span>
-                            </div>
-                            <div class="flex items-center gap-1 px-3 py-1 rounded-full bg-gray-900 bg-opacity-60 border border-gray-700">
-                                <span id="mk-to-z-prefix" class="font-mono text-xs text-gray-300">~</span>
-                                <span id="mk-to-z" class="font-mono text-sm text-gray-100">0</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+    <!-- CONTROLS PANEL -->
+    <div id="ui-panel" class="pointer-events-auto bg-[#2a2a3e] lg:w-[420px] w-full lg:h-full flex-shrink-0 flex flex-col">
+
+        <!-- Title bar -->
+        <div class="bg-[#3a3a52] px-4 py-2 flex items-center justify-between border-b-2 border-[#1a1a2e]">
+            <h1 class="font-mc text-base text-green-300">Fill Visualizer</h1>
+            <div class="flex items-center gap-3 text-sm">
+                <label class="flex items-center gap-1 text-gray-200 cursor-pointer">
+                    <input type="radio" name="mode" value="world" id="modeWorld" class="accent-green-500 w-4 h-4" checked>
+                    <span class="font-mc">World</span>
+                </label>
+                <label class="flex items-center gap-1 text-gray-200 cursor-pointer">
+                    <input type="radio" name="mode" value="relative" id="modeRelative" class="accent-green-500 w-4 h-4">
+                    <span class="font-mc">Relative</span>
+                </label>
             </div>
         </div>
+        <div class="grass-strip"></div>
 
-        <!-- This is the 'stacked' UI you described, matching the MakeCode block -->
-        <div class="flex flex-col gap-3">
+        <div class="flex-1 overflow-y-auto p-4 flex flex-col gap-3">
 
-            <!-- Corner 1 (From) -->
-            <div class="p-3 bg-cyan-900 bg-opacity-50 rounded-lg flex flex-row items-center gap-3">
-                <h3 class="text-lg font-semibold text-cyan-300 w-12 flex-shrink-0">from</h3>
-                <div class="grid grid-cols-3 gap-2 w-full">
-                    <!-- X1 Slider Group -->
-                    <div class="flex flex-col items-center">
-                        <label for="x1" class="font-mono text-lg text-red-400">X</label>
-                        <span class="font-mono text-xs text-red-300 mb-1">(West/East)</span>
-                        <span id="x1-val" class="font-mono text-lg text-red-400 mb-1">0</span>
-                        <input type="range" id="x1" min="0" max="63" value="0" class="accent-red-500 w-full">
-                    </div>
-                    <!-- Y1 Slider Group -->
-                    <div class="flex flex-col items-center">
-                        <label for="y1" class="font-mono text-lg text-green-400">Y</label>
-                        <span class="font-mono text-xs text-green-300 mb-1">(Down/Up)</span>
-                        <span id="y1-val" class="font-mono text-lg text-green-400 mb-1">0</span>
-                        <input type="range" id="y1" min="0" max="63" value="0" class="accent-green-500 w-full">
-                    </div>
-                    <!-- Z1 Slider Group -->
-                    <div class="flex flex-col items-center">
-                        <label for="z1" class="font-mono text-lg text-blue-400">Z</label>
-                        <span class="font-mono text-xs text-blue-300 mb-1">(North/South)</span>
-                        <span id="z1-val" class="font-mono text-lg text-blue-400 mb-1">0</span>
-                        <input type="range" id="z1" min="0" max="63" value="0" class="accent-blue-500 w-full">
-                    </div>
-                </div>
+            <!-- SHAPE INDICATOR -->
+            <div id="shapeIndicator" class="mc-border px-4 py-3 text-center bg-[#333350]">
+                <div id="shapeLabel" class="font-mc text-xl text-white">Single Block</div>
+                <div id="shapeDesc" class="text-sm text-gray-300 mt-1">From and To are the same spot</div>
             </div>
 
-            <!-- Corner 2 (To) -->
-            <div class="p-3 bg-yellow-900 bg-opacity-50 rounded-lg flex flex-row items-center gap-3">
-                <h3 class="text-lg font-semibold text-yellow-300 w-12 flex-shrink-0">to</h3>
-                <div class="grid grid-cols-3 gap-2 w-full">
-                    <!-- X2 Slider Group -->
-                    <div class="flex flex-col items-center">
-                        <label for="x2" class="font-mono text-lg text-red-400">X</label>
-                        <span class="font-mono text-xs text-red-300 mb-1">(West/East)</span>
-                        <span id="x2-val" class="font-mono text-lg text-red-400 mb-1">0</span>
-                        <input type="range" id="x2" min="0" max="63" value="0" class="accent-red-500 w-full">
+            <!-- Drag instruction -->
+            <p class="text-sm text-gray-400 text-center">Drag a number up or down to change it</p>
+
+            <!-- ===== MAKECODE FILL BLOCK ===== -->
+            <!-- Looks like the real block. Each number has its axis + direction label RIGHT ON IT -->
+            <div class="mc-border overflow-hidden" style="border-color: var(--mc-green-dark); border-top-color: var(--mc-green-light); border-left-color: var(--mc-green-light);">
+
+                <!-- Block header -->
+                <div class="px-4 py-2 flex items-center justify-between" style="background: var(--mc-green);">
+                    <span class="font-mc text-base text-green-100">fill with</span>
+                </div>
+
+                <!-- Column headers — shared across from and to -->
+                <div class="grid grid-cols-[3.5rem_3rem_1fr_1fr_1fr] gap-2 px-4 py-2 items-end" style="background: var(--mc-green-dark);">
+                    <div></div>
+                    <div></div>
+                    <div class="text-center">
+                        <div class="font-mc text-sm text-red-400">X</div>
+                        <div class="font-mc text-xs text-red-300">W- E+</div>
                     </div>
-                    <!-- Y2 Slider Group -->
-                    <div class="flex flex-col items-center">
-                        <label for="y2" class="font-mono text-lg text-green-400">Y</label>
-                        <span class="font-mono text-xs text-green-300 mb-1">(Down/Up)</span>
-                        <span id="y2-val" class="font-mono text-lg text-green-400 mb-1">0</span>
-                        <input type="range" id="y2" min="0" max="63" value="0" class="accent-green-500 w-full">
+                    <div class="text-center">
+                        <div class="font-mc text-sm text-green-400">Y</div>
+                        <div class="font-mc text-xs text-green-300">Dn- Up+</div>
                     </div>
-                    <!-- Z2 Slider Group -->
-                    <div class="flex flex-col items-center">
-                        <label for="z2" class="font-mono text-lg text-blue-400">Z</label>
-                        <span class="font-mono text-xs text-blue-300 mb-1">(North/South)</span>
-                        <span id="z2-val" class="font-mono text-lg text-blue-400 mb-1">0</span>
-                        <input type="range" id="z2" min="0" max="63" value="0" class="accent-blue-500 w-full">
+                    <div class="text-center">
+                        <div class="font-mc text-sm text-blue-400">Z</div>
+                        <div class="font-mc text-xs text-blue-300">N- S+</div>
                     </div>
                 </div>
+
+                <!-- FROM row -->
+                <div class="grid grid-cols-[3.5rem_3rem_1fr_1fr_1fr] gap-2 px-4 py-3 items-center" style="background: var(--mc-green-dark);">
+                    <span class="font-mc text-lg text-cyan-300">from</span>
+                    <span id="mk-from-mode" class="font-mc text-sm text-green-300"></span>
+                    <div class="flex justify-center"><span id="mk-from-x-prefix" class="font-mc text-sm text-green-300 mr-0.5"></span><input id="mk-from-x" type="text" inputmode="numeric" value="0" class="drag-num" data-slider="x1" /></div>
+                    <div class="flex justify-center"><span id="mk-from-y-prefix" class="font-mc text-sm text-green-300 mr-0.5"></span><input id="mk-from-y" type="text" inputmode="numeric" value="-60" class="drag-num" data-slider="y1" data-is-y="true" /></div>
+                    <div class="flex justify-center"><span id="mk-from-z-prefix" class="font-mc text-sm text-green-300 mr-0.5"></span><input id="mk-from-z" type="text" inputmode="numeric" value="0" class="drag-num" data-slider="z1" /></div>
+                </div>
+
+                <div class="h-[2px]" style="background: var(--mc-green);"></div>
+
+                <!-- TO row -->
+                <div class="grid grid-cols-[3.5rem_3rem_1fr_1fr_1fr] gap-2 px-4 py-3 items-center" style="background: var(--mc-green-dark);">
+                    <span class="font-mc text-lg text-yellow-300">to</span>
+                    <span id="mk-to-mode" class="font-mc text-sm text-green-300"></span>
+                    <div class="flex justify-center"><span id="mk-to-x-prefix" class="font-mc text-sm text-green-300 mr-0.5"></span><input id="mk-to-x" type="text" inputmode="numeric" value="0" class="drag-num" data-slider="x2" /></div>
+                    <div class="flex justify-center"><span id="mk-to-y-prefix" class="font-mc text-sm text-green-300 mr-0.5"></span><input id="mk-to-y" type="text" inputmode="numeric" value="-60" class="drag-num" data-slider="y2" data-is-y="true" /></div>
+                    <div class="flex justify-center"><span id="mk-to-z-prefix" class="font-mc text-sm text-green-300 mr-0.5"></span><input id="mk-to-z" type="text" inputmode="numeric" value="0" class="drag-num" data-slider="z2" /></div>
+                </div>
+
+                <!-- mode spans are now inline in from/to labels -->
+            </div>
+
+            <!-- Ground level -->
+            <div id="groundRow" class="flex items-center gap-3 px-1">
+                <label for="groundLevel" class="font-mc text-sm text-gray-300">Ground Y:</label>
+                <input id="groundLevel" type="text" inputmode="numeric" pattern="-?[0-9]*" value="-60"
+                    class="w-20 px-3 py-1 rounded-sm bg-[#333] border-2 border-[#555] text-base text-gray-100 font-mono focus:outline-none focus:border-green-500" />
             </div>
 
         </div>
     </div>
 
-    <!-- 4. The 3D JavaScript -->
-    <script type="module">
-        import * as THREE from 'three';
-        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-        import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
+    <!-- 3D VIEWPORT -->
+    <div class="flex-1 pointer-events-auto min-h-[250px]"></div>
+</div>
 
-        let scene, camera, renderer, labelRenderer, controls;
-        let currentBox, gridHelper;
-        let modeRadios, groundInput, groundRow;
-        let currentMode = 'relative';
-        let groundValue = 0;
-        let blockCountDisplay, blockCountStatus, boundsWarning, valueModeLabel;
-        let makeCodeFields = {};
-        let makeCodeModeLabels = {};
+<!-- Hidden range inputs — sliders are now invisible, just used as state -->
+<div style="display:none;">
+    <input type="range" id="x1" min="0" max="63" value="0">
+    <input type="range" id="y1" min="0" max="63" value="0">
+    <input type="range" id="z1" min="0" max="63" value="0">
+    <input type="range" id="x2" min="0" max="63" value="0">
+    <input type="range" id="y2" min="0" max="63" value="0">
+    <input type="range" id="z2" min="0" max="63" value="0">
+</div>
 
-        const BLOCK_LIMIT = 32000;
-        const BLOCK_CAUTION = 25000;
-        const SLIDER_MAX = 63;
-        const SCENE_RANGE = 20;
-        const SCALE_FACTOR = SCENE_RANGE / SLIDER_MAX;
-        const GROUND_MIN = -64;
-        const GROUND_MAX = 320;
+<script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+    import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
 
-        const toScene = (value) => value * SCALE_FACTOR;
+    let scene, camera, renderer, labelRenderer, controls;
+    let fillGroup, gridHelper;
+    let modeRadios, groundInput, groundRow;
+    let currentMode = 'world';
+    let groundValue = -60;
+    let valueModeLabel;
+    let shapeLabel, shapeDesc, shapeIndicator;
+    let makeCodeFields = {};
+    let makeCodeModeLabels = {};
 
-        const sliders = {};
-        const values = {};
+    const SLIDER_MAX = 63;
+    const SCENE_RANGE = 20;
+    const SCALE_FACTOR = SCENE_RANGE / SLIDER_MAX;
+    const GROUND_MIN = -64;
+    const GROUND_MAX = 320;
 
-        function init() {
+    const sliders = {};
+    const values = {};
+    let hasWebGL = true;
+
+    // ===== DRAG-TO-CHANGE NUMBERS =====
+    function setupDragNumbers() {
+        document.querySelectorAll('.drag-num').forEach(input => {
+            let dragging = false;
+            let startY, startVal;
+
+            input.addEventListener('mousedown', (e) => {
+                // If already focused (typing mode), don't start drag
+                if (document.activeElement === input) return;
+                e.preventDefault();
+                dragging = true;
+                startY = e.clientY;
+                startVal = parseFloat(input.value) || 0;
+                input.classList.add('dragging');
+                document.body.style.cursor = 'ns-resize';
+
+                const onMove = (e) => {
+                    if (!dragging) return;
+                    const dy = startY - e.clientY; // up = positive
+                    const sensitivity = 0.5; // pixels per unit
+                    const delta = Math.round(dy * sensitivity);
+                    const newVal = startVal + delta;
+                    applyDragValue(input, newVal);
+                };
+
+                const onUp = () => {
+                    dragging = false;
+                    input.classList.remove('dragging');
+                    document.body.style.cursor = '';
+                    document.removeEventListener('mousemove', onMove);
+                    document.removeEventListener('mouseup', onUp);
+                };
+
+                document.addEventListener('mousemove', onMove);
+                document.addEventListener('mouseup', onUp);
+            });
+
+            // Touch support for tablets/chromebooks
+            input.addEventListener('touchstart', (e) => {
+                if (document.activeElement === input) return;
+                const touch = e.touches[0];
+                dragging = true;
+                startY = touch.clientY;
+                startVal = parseFloat(input.value) || 0;
+                input.classList.add('dragging');
+
+                const onMove = (e) => {
+                    if (!dragging) return;
+                    e.preventDefault();
+                    const dy = startY - e.touches[0].clientY;
+                    const delta = Math.round(dy * 0.5);
+                    applyDragValue(input, startVal + delta);
+                };
+
+                const onEnd = () => {
+                    dragging = false;
+                    input.classList.remove('dragging');
+                    document.removeEventListener('touchmove', onMove);
+                    document.removeEventListener('touchend', onEnd);
+                };
+
+                document.addEventListener('touchmove', onMove, { passive: false });
+                document.addEventListener('touchend', onEnd);
+            });
+
+            // Typing mode — click to focus, type a value
+            input.addEventListener('focus', () => { input._userEditing = true; input.select(); });
+            input.addEventListener('blur', () => {
+                input._userEditing = false;
+                // Clamp typed value
+                const parsed = parseFloat(input.value);
+                if (!isNaN(parsed)) applyDragValue(input, parsed);
+                syncAll();
+            });
+            input.addEventListener('keydown', (e) => { if (e.key === 'Enter') input.blur(); });
+            input.addEventListener('input', () => {
+                const parsed = parseFloat(input.value.trim());
+                if (!isNaN(parsed)) applyDragValue(input, parsed, true);
+            });
+        });
+    }
+
+    function applyDragValue(input, newVal, skipDisplayUpdate) {
+        const sliderId = input.dataset.slider;
+        const isY = input.dataset.isY === 'true';
+        const slider = sliders[sliderId];
+        if (!slider) return;
+
+        let sliderVal;
+        if (isY && currentMode === 'world') {
+            sliderVal = newVal - getGroundLevel();
+        } else {
+            sliderVal = newVal;
+        }
+
+        sliderVal = Math.max(0, Math.min(SLIDER_MAX, Math.round(sliderVal)));
+        slider.value = sliderVal;
+
+        // Update the displayed value in the input (unless user is typing)
+        if (!skipDisplayUpdate && !input._userEditing) {
+            if (isY && currentMode === 'world') {
+                input.value = Math.round((sliderVal + getGroundLevel()) * 100) / 100;
+            } else {
+                input.value = sliderVal;
+            }
+        }
+
+        updateFillBox();
+        updateCommandPreview();
+    }
+
+    function syncAll() {
+        updateFillBox();
+        updateCommandPreview();
+    }
+
+    function init() {
+        try {
             scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x111827);
-
+            scene.background = new THREE.Color(0x1a1a2e);
             camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
             camera.position.set(10, 20, -32);
 
@@ -267,387 +319,163 @@
 
             controls = new OrbitControls(camera, renderer.domElement);
             controls.target.set(0, 5, 0);
-            const cameraVec = new THREE.Vector3().subVectors(camera.position, controls.target);
-            const initialPolarAngle = Math.atan2(Math.sqrt(cameraVec.x * cameraVec.x + cameraVec.z * cameraVec.z), cameraVec.y);
-            controls.minPolarAngle = initialPolarAngle;
-            controls.maxPolarAngle = initialPolarAngle;
+            const cv = new THREE.Vector3().subVectors(camera.position, controls.target);
+            const ipa = Math.atan2(Math.sqrt(cv.x*cv.x + cv.z*cv.z), cv.y);
+            controls.minPolarAngle = ipa;
+            controls.maxPolarAngle = ipa;
             controls.enablePan = false;
             controls.update();
             controls.enableDamping = true;
             controls.dampingFactor = 0.05;
 
-            const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
-            scene.add(ambientLight);
-            const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
-            directionalLight.position.set(5, 10, 7.5);
-            scene.add(directionalLight);
+            scene.add(new THREE.AmbientLight(0xffffff, 0.7));
+            const dl = new THREE.DirectionalLight(0xffffff, 1);
+            dl.position.set(5, 10, 7.5); scene.add(dl);
 
             drawAxes();
+            scene.add(new THREE.GridHelper(40, 40, 0x333355, 0x222244));
+        } catch (e) { console.warn('WebGL not available:', e.message); hasWebGL = false; }
 
-            gridHelper = new THREE.GridHelper(40, 40, 0x444444, 0x222222);
-            scene.add(gridHelper);
+        groundInput = document.getElementById('groundLevel');
+        groundRow = document.getElementById('groundRow');
+        modeRadios = document.querySelectorAll('input[name="mode"]');
+        valueModeLabel = document.getElementById('valueModeLabel');
+        shapeLabel = document.getElementById('shapeLabel');
+        shapeDesc = document.getElementById('shapeDesc');
+        shapeIndicator = document.getElementById('shapeIndicator');
 
-            groundInput = document.getElementById('groundLevel');
-            groundRow = document.getElementById('groundRow');
-            modeRadios = document.querySelectorAll('input[name="mode"]');
-            blockCountDisplay = document.getElementById('blockCountDisplay');
-            blockCountStatus = document.getElementById('blockCountStatus');
-            boundsWarning = document.getElementById('boundsWarning');
-            valueModeLabel = document.getElementById('valueModeLabel');
-            makeCodeFields = {
-                from: {
-                    x: { value: document.getElementById('mk-from-x'), prefix: document.getElementById('mk-from-x-prefix') },
-                    y: { value: document.getElementById('mk-from-y'), prefix: document.getElementById('mk-from-y-prefix') },
-                    z: { value: document.getElementById('mk-from-z'), prefix: document.getElementById('mk-from-z-prefix') }
-                },
-                to: {
-                    x: { value: document.getElementById('mk-to-x'), prefix: document.getElementById('mk-to-x-prefix') },
-                    y: { value: document.getElementById('mk-to-y'), prefix: document.getElementById('mk-to-y-prefix') },
-                    z: { value: document.getElementById('mk-to-z'), prefix: document.getElementById('mk-to-z-prefix') }
-                }
-            };
-            makeCodeModeLabels = {
-                from: document.getElementById('mk-from-mode'),
-                to: document.getElementById('mk-to-mode')
-            };
-
-            const commitGroundValue = () => {
-                if (!groundInput) return;
-                const clamped = clampGroundValue(groundInput.value);
-                if (clamped === null) {
-                    groundInput.value = groundValue.toString();
-                } else {
-                    groundValue = clamped;
-                    groundInput.value = clamped.toString();
-                }
-                updateFillBox();
-                updateCommandPreview();
-                refreshValueDisplays();
-            };
-
-            if (groundInput) {
-                groundInput.addEventListener('input', () => {
-                    const value = groundInput.value;
-                    if (value === '' || value === '-' || value === '+') {
-                        updateFillBox();
-                        updateCommandPreview();
-                        refreshValueDisplays();
-                        return;
-                    }
-                    const parsed = parseFloat(value);
-                    if (isNaN(parsed)) return;
-                    const clamped = Math.min(GROUND_MAX, Math.max(GROUND_MIN, parsed));
-                    groundValue = clamped;
-                    updateFillBox();
-                    updateCommandPreview();
-                    refreshValueDisplays();
-                });
-                groundInput.addEventListener('blur', commitGroundValue);
-                groundInput.addEventListener('keydown', (e) => {
-                    if (e.key === 'Enter') {
-                        commitGroundValue();
-                        groundInput.blur();
-                    }
-                });
+        makeCodeFields = {
+            from: {
+                x: { value: document.getElementById('mk-from-x'), prefix: document.getElementById('mk-from-x-prefix') },
+                y: { value: document.getElementById('mk-from-y'), prefix: document.getElementById('mk-from-y-prefix') },
+                z: { value: document.getElementById('mk-from-z'), prefix: document.getElementById('mk-from-z-prefix') }
+            },
+            to: {
+                x: { value: document.getElementById('mk-to-x'), prefix: document.getElementById('mk-to-x-prefix') },
+                y: { value: document.getElementById('mk-to-y'), prefix: document.getElementById('mk-to-y-prefix') },
+                z: { value: document.getElementById('mk-to-z'), prefix: document.getElementById('mk-to-z-prefix') }
             }
+        };
+        makeCodeModeLabels = { from: document.getElementById('mk-from-mode'), to: document.getElementById('mk-to-mode') };
 
-            if (modeRadios) {
-                modeRadios.forEach(radio => {
-                    radio.addEventListener('change', () => {
-                        currentMode = radio.value;
-                        if (groundRow) {
-                            groundRow.classList.toggle('hidden', currentMode !== 'world');
-                        }
-                        updateFillBox();
-                        updateCommandPreview();
-                        refreshValueDisplays();
-                    });
-                });
-            }
+        // Hidden sliders as state
+        ['x1','y1','z1','x2','y2','z2'].forEach(id => { sliders[id] = document.getElementById(id); });
 
-            setupUIListeners();
-            refreshValueDisplays();
-            updateFillBox();
-            updateCommandPreview();
-            animate();
-        }
-
-        function drawAxes() {
-            const axisLength = 20.5;
-
-            const createAxisLabel = (text, className) => {
-                const div = document.createElement('div');
-                div.className = `label ${className}`;
-                div.textContent = text;
-                return new CSS2DObject(div);
-            };
-
-            // X-Axis (East) - Red
-            const xMat = new THREE.LineBasicMaterial({ color: 0xf87171, linewidth: 3 });
-            const xGeom = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(-axisLength, 0, 0), new THREE.Vector3(axisLength, 0, 0)]);
-            const xAxis = new THREE.Line(xGeom, xMat);
-            scene.add(xAxis);
-            const xLabelPos = createAxisLabel('+X (East)', 'text-red-400');
-            xLabelPos.position.set(axisLength, 0, 0);
-            scene.add(xLabelPos);
-            const xLabelNeg = createAxisLabel('-X (West)', 'text-red-400');
-            xLabelNeg.position.set(-axisLength, 0, 0);
-            scene.add(xLabelNeg);
-
-            // Y-Axis (Up) - Green
-            const yMat = new THREE.LineBasicMaterial({ color: 0x4ade80, linewidth: 3 });
-            const yGeom = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, -axisLength, 0), new THREE.Vector3(0, axisLength, 0)]);
-            const yAxis = new THREE.Line(yGeom, yMat);
-            scene.add(yAxis);
-            const yLabelPos = createAxisLabel('+Y (Up)', 'text-green-400');
-            yLabelPos.position.set(0, axisLength, 0);
-            scene.add(yLabelPos);
-            const yLabelNeg = createAxisLabel('-Y (Down)', 'text-green-400');
-            yLabelNeg.position.set(0, -axisLength, 0);
-            scene.add(yLabelNeg);
-
-            // Z-Axis (South) - Blue
-            const zMat = new THREE.LineBasicMaterial({ color: 0x60a5fa, linewidth: 3 });
-            const zGeom = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, 0, -axisLength), new THREE.Vector3(0, 0, axisLength)]);
-            const zAxis = new THREE.Line(zGeom, zMat);
-            scene.add(zAxis);
-            const zLabelPos = createAxisLabel('+Z (South)', 'text-blue-400');
-            zLabelPos.position.set(0, 0, axisLength);
-            scene.add(zLabelPos);
-            const zLabelNeg = createAxisLabel('-Z (North)', 'text-blue-400');
-            zLabelNeg.position.set(0, 0, -axisLength);
-            scene.add(zLabelNeg);
-        }
-
-        function setupUIListeners() {
-            const sliderIds = ['x1', 'y1', 'z1', 'x2', 'y2', 'z2'];
-
-            sliderIds.forEach(id => {
-                const input = document.getElementById(id);
-                const valueLabel = document.getElementById(`${id}-val`);
-                sliders[id] = input;
-                values[id] = valueLabel;
-
-                if (!input) return;
-
-                const updateDisplayAndScene = () => {
-                    if (valueLabel) valueLabel.textContent = getDisplayValue(id, input.value);
-                    updateFillBox();
-                    updateCommandPreview();
-                };
-
-                input.addEventListener('input', updateDisplayAndScene);
-
-                input.addEventListener('dblclick', () => {
-                    input.value = 0;
-                    updateDisplayAndScene();
-                });
-
-                if (valueLabel) valueLabel.textContent = getDisplayValue(id, input.value);
+        const commitGround = () => {
+            if (!groundInput) return;
+            const c = clampGroundValue(groundInput.value);
+            if (c === null) groundInput.value = groundValue.toString();
+            else { groundValue = c; groundInput.value = c.toString(); }
+            syncAll();
+        };
+        if (groundInput) {
+            groundInput.addEventListener('input', () => {
+                const v = groundInput.value;
+                if (v === '' || v === '-' || v === '+') { syncAll(); return; }
+                const p = parseFloat(v); if (isNaN(p)) return;
+                groundValue = Math.min(GROUND_MAX, Math.max(GROUND_MIN, p));
+                syncAll();
             });
+            groundInput.addEventListener('blur', commitGround);
+            groundInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') { commitGround(); groundInput.blur(); } });
+        }
+        if (modeRadios) {
+            modeRadios.forEach(r => r.addEventListener('change', () => {
+                currentMode = r.value;
+                if (groundRow) groundRow.classList.toggle('hidden', currentMode !== 'world');
+                syncAll();
+            }));
         }
 
-        function getCoordinates() {
-            const getValue = (id) => {
-                const slider = sliders[id];
-                if (!slider) return 0;
-                const parsed = parseFloat(slider.value);
-                return isNaN(parsed) ? 0 : parsed;
-            };
-            return {
-                x1: getValue('x1'), y1: getValue('y1'), z1: getValue('z1'),
-                x2: getValue('x2'), y2: getValue('y2'), z2: getValue('z2')
-            };
-        }
+        setupDragNumbers();
+        syncAll();
+        animate();
+    }
 
-        function getGroundLevel() {
-            return groundValue;
-        }
+    function drawAxes() {
+        const len = 20.5;
+        const mkLabel = (t,c) => { const d = document.createElement('div'); d.className = `label ${c}`; d.textContent = t; return new CSS2DObject(d); };
+        const line = (pts,col) => { scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineBasicMaterial({ color:col, linewidth:3 }))); };
 
-        function clampGroundValue(raw) {
-            const str = (raw ?? '').toString();
-            const trimmed = str.trim();
-            if (trimmed === '' || trimmed === '-' || trimmed === '+') return null;
-            const parsed = parseFloat(trimmed);
-            if (isNaN(parsed)) return null;
-            const rounded = Math.round(parsed);
-            return Math.min(GROUND_MAX, Math.max(GROUND_MIN, rounded));
-        }
+        line([new THREE.Vector3(-len,0,0), new THREE.Vector3(len,0,0)], 0xf87171);
+        let l; l = mkLabel('+X East','text-red-400'); l.position.set(len,0,0); scene.add(l);
+        l = mkLabel('-X West','text-red-400'); l.position.set(-len,0,0); scene.add(l);
 
-        function getDisplayValue(id, rawValue) {
-            if ((id === 'y1' || id === 'y2') && currentMode === 'world') {
-                const ground = getGroundLevel();
-                const num = parseFloat(rawValue);
-                if (!isNaN(num)) {
-                    const result = Math.round((num + ground) * 100) / 100;
-                    return result.toString();
-                }
-            }
-            return rawValue;
-        }
+        line([new THREE.Vector3(0,-len,0), new THREE.Vector3(0,len,0)], 0x4ade80);
+        l = mkLabel('+Y Up','text-green-400'); l.position.set(0,len,0); scene.add(l);
+        l = mkLabel('-Y Down','text-green-400'); l.position.set(0,-len,0); scene.add(l);
 
-        function refreshValueDisplays() {
-            Object.keys(sliders).forEach(id => {
-                const slider = sliders[id];
-                const valueSpan = values[id];
-                if (!slider || !valueSpan) return;
-                valueSpan.textContent = getDisplayValue(id, slider.value);
-            });
-        }
+        line([new THREE.Vector3(0,0,-len), new THREE.Vector3(0,0,len)], 0x60a5fa);
+        l = mkLabel('+Z South','text-blue-400'); l.position.set(0,0,len); scene.add(l);
+        l = mkLabel('-Z North','text-blue-400'); l.position.set(0,0,-len); scene.add(l);
+    }
 
-        function updateCommandPreview() {
-            const coords = getCoordinates();
-            const ground = currentMode === 'world' ? getGroundLevel() : 0;
-            refreshInsights(coords, ground);
-        }
+    function getCoordinates() {
+        const g = id => { const s = sliders[id]; return s ? (parseFloat(s.value) || 0) : 0; };
+        return { x1:g('x1'), y1:g('y1'), z1:g('z1'), x2:g('x2'), y2:g('y2'), z2:g('z2') };
+    }
+    function getGroundLevel() { return groundValue; }
+    function clampGroundValue(raw) {
+        const t = (raw ?? '').toString().trim();
+        if (t === '' || t === '-' || t === '+') return null;
+        const p = parseFloat(t); if (isNaN(p)) return null;
+        return Math.min(GROUND_MAX, Math.max(GROUND_MIN, Math.round(p)));
+    }
 
-        function getWorldCoordinates(coords, groundLevel) {
-            const xMin = Math.min(coords.x1, coords.x2);
-            const xMax = Math.max(coords.x1, coords.x2);
-            const yMin = Math.min(coords.y1, coords.y2) + groundLevel;
-            const yMax = Math.max(coords.y1, coords.y2) + groundLevel;
-            const zMin = Math.min(coords.z1, coords.z2);
-            const zMax = Math.max(coords.z1, coords.z2);
-            const round = (n) => Math.round(n * 100) / 100;
-            return {
-                x1: round(xMin), y1: round(yMin), z1: round(zMin),
-                x2: round(xMax), y2: round(yMax), z2: round(zMax)
-            };
-        }
+    function updateCommandPreview() {
+        const c = getCoordinates(), g = currentMode === 'world' ? getGroundLevel() : 0;
+        updateMakeCodeValues(c, g);
+        updateShapeIndicator(c);
+    }
 
-        function updateMakeCodeValues(coords, ground) {
-            if (!makeCodeFields.from) return;
-            const format = (num) => Math.round(num * 100) / 100;
-            const prefixText = currentMode === 'relative' ? '~' : '';
-            const from = { x: coords.x1, y: coords.y1, z: coords.z1 };
-            const to = { x: coords.x2, y: coords.y2, z: coords.z2 };
+    function updateMakeCodeValues(coords, ground) {
+        if (!makeCodeFields.from) return;
+        const fmt = n => Math.round(n * 100) / 100;
+        const pfx = currentMode === 'relative' ? '~' : '';
+        const from = { x:coords.x1, y:coords.y1, z:coords.z1 }, to = { x:coords.x2, y:coords.y2, z:coords.z2 };
+        if (currentMode === 'world') { from.y += ground; to.y += ground; }
+        const modeText = currentMode === 'world' ? 'world' : '';
+        if (makeCodeModeLabels.from) makeCodeModeLabels.from.textContent = modeText;
+        if (makeCodeModeLabels.to) makeCodeModeLabels.to.textContent = modeText;
+        const set = (g,a,v) => { const f = makeCodeFields[g]?.[a]; if (!f) return; if (f.value && !f.value._userEditing) f.value.value = fmt(v); if (f.prefix) f.prefix.textContent = pfx; };
+        set('from','x',from.x); set('from','y',from.y); set('from','z',from.z);
+        set('to','x',to.x); set('to','y',to.y); set('to','z',to.z);
+    }
 
-            if (currentMode === 'world') {
-                from.y = from.y + ground;
-                to.y = to.y + ground;
-                if (valueModeLabel) valueModeLabel.textContent = 'World (absolute)';
-            } else {
-                if (valueModeLabel) valueModeLabel.textContent = 'Relative (~)';
-            }
+    function updateShapeIndicator(coords) {
+        if (!shapeLabel) return;
+        const dx = Math.abs(coords.x2-coords.x1), dy = Math.abs(coords.y2-coords.y1), dz = Math.abs(coords.z2-coords.z1);
+        const dims = [dx,dy,dz].filter(d => d > 0).length;
+        let name, desc, border;
+        if (dims === 0) { name = 'Single Block'; desc = 'From and To are the same spot'; border = '#555'; }
+        else if (dims === 1) { const a = dx > 0 ? 'X' : dy > 0 ? 'Y' : 'Z'; name = 'Line'; desc = `A row of blocks along ${a}`; border = '#a78bfa'; }
+        else if (dims === 2) {
+            if (dy === 0) { name = 'Floor / Ceiling'; desc = 'Flat on the ground — no height'; }
+            else { name = 'Wall'; desc = 'Flat — like a wall with no thickness'; }
+            border = '#fbbf24';
+        } else { name = 'Box (3D)'; desc = 'Has width, height, and depth'; border = '#34d399'; }
+        shapeLabel.textContent = name;
+        shapeDesc.textContent = desc;
+        shapeIndicator.style.borderColor = border;
+    }
 
-            if (makeCodeModeLabels.from) {
-                makeCodeModeLabels.from.classList.toggle('hidden', currentMode !== 'world');
-            }
-            if (makeCodeModeLabels.to) {
-                makeCodeModeLabels.to.classList.toggle('hidden', currentMode !== 'world');
-            }
+    function updateFillBox() {
+        if (!hasWebGL) return;
+        if (fillGroup) { fillGroup.traverse(c => { if (c.geometry) c.geometry.dispose(); if (c.material) c.material.dispose(); }); scene.remove(fillGroup); }
+        const c = getCoordinates();
+        const w = (Math.abs(c.x2-c.x1)+1)*SCALE_FACTOR, h = (Math.abs(c.y2-c.y1)+1)*SCALE_FACTOR, d = (Math.abs(c.z2-c.z1)+1)*SCALE_FACTOR;
+        const cx = ((c.x1+c.x2)/2)*SCALE_FACTOR, cy = ((c.y1+c.y2)/2)*SCALE_FACTOR, cz = ((c.z1+c.z2)/2)*SCALE_FACTOR;
+        fillGroup = new THREE.Group();
+        const bg = new THREE.BoxGeometry(w,h,d);
+        fillGroup.add(new THREE.Mesh(bg, new THREE.MeshPhongMaterial({ color:0x4B7A47, transparent:true, opacity:0.3, side:THREE.DoubleSide, depthWrite:false })));
+        fillGroup.add(new THREE.LineSegments(new THREE.EdgesGeometry(bg), new THREE.LineBasicMaterial({ color:0x7ddf7a, linewidth:2 })));
+        fillGroup.position.set(cx,cy,cz);
+        scene.add(fillGroup);
+    }
 
-            const setField = (group, axis, value) => {
-                const field = makeCodeFields[group]?.[axis];
-                if (!field) return;
-                if (field.value) field.value.textContent = format(value);
-                if (field.prefix) field.prefix.textContent = prefixText;
-            };
-
-            setField('from', 'x', from.x);
-            setField('from', 'y', from.y);
-            setField('from', 'z', from.z);
-            setField('to', 'x', to.x);
-            setField('to', 'y', to.y);
-            setField('to', 'z', to.z);
-        }
-
-        function updateBlockCount(coords) {
-            if (!blockCountDisplay || !blockCountStatus) return;
-            const dx = Math.abs(coords.x2 - coords.x1) + 1;
-            const dy = Math.abs(coords.y2 - coords.y1) + 1;
-            const dz = Math.abs(coords.z2 - coords.z1) + 1;
-            const total = dx * dy * dz;
-
-            blockCountDisplay.textContent = `${total.toLocaleString()} block${total === 1 ? '' : 's'}`;
-
-            const setStatus = (text, colorClass) => {
-                blockCountStatus.textContent = text;
-                blockCountStatus.className = `text-xs font-semibold ${colorClass}`;
-            };
-
-            if (total > BLOCK_LIMIT) {
-                setStatus('Too many blocks (>32,000)', 'text-rose-400');
-            } else if (total > BLOCK_CAUTION) {
-                setStatus('Consider shrinking (25k+)', 'text-amber-300');
-            } else {
-                setStatus('Within limit', 'text-emerald-400');
-            }
-        }
-
-        function setValueWarning(id, warn) {
-            const span = values[id];
-            if (!span) return;
-            span.style.color = warn ? '#f87171' : '';
-        }
-
-        function updateBoundsStatus(coords, ground) {
-            if (!boundsWarning) return;
-            const world = getWorldCoordinates(coords, ground);
-            const lowerBound = currentMode === 'world' ? ground : 0;
-            const upperBound = 320;
-            const below = currentMode === 'world' && (world.y1 < lowerBound || world.y2 < lowerBound);
-            const above = currentMode === 'world' && (world.y1 > upperBound || world.y2 > upperBound);
-            const out = below || above;
-            boundsWarning.classList.toggle('hidden', !out);
-            if (out) {
-                const boundLabel = `World Y must stay between ${lowerBound} and ${upperBound}.`;
-                boundsWarning.textContent = `${boundLabel} Current range: ${world.y1} to ${world.y2}.`;
-            }
-            setValueWarning('y1', below || above);
-            setValueWarning('y2', below || above);
-        }
-
-        function refreshInsights(coords, ground) {
-            updateMakeCodeValues(coords, ground);
-            updateBlockCount(coords);
-            updateBoundsStatus(coords, ground);
-        }
-
-        function updateFillBox() {
-            if (currentBox) {
-                scene.remove(currentBox);
-                currentBox.geometry.dispose();
-                currentBox.material.dispose();
-            }
-
-            const coords = getCoordinates();
-
-            const width  = (Math.abs(coords.x2 - coords.x1) + 1) * SCALE_FACTOR;
-            const height = (Math.abs(coords.y2 - coords.y1) + 1) * SCALE_FACTOR;
-            const depth  = (Math.abs(coords.z2 - coords.z1) + 1) * SCALE_FACTOR;
-
-            const centerX = ((coords.x1 + coords.x2) / 2) * SCALE_FACTOR;
-            const centerY = ((coords.y1 + coords.y2) / 2) * SCALE_FACTOR;
-            const centerZ = ((coords.z1 + coords.z2) / 2) * SCALE_FACTOR;
-
-            const geometry = new THREE.BoxGeometry(width, height, depth);
-            const edges = new THREE.EdgesGeometry(geometry);
-            const material = new THREE.LineBasicMaterial({
-                color: 0xfde047,
-                linewidth: 3
-            });
-
-            currentBox = new THREE.LineSegments(edges, material);
-            currentBox.position.set(centerX, centerY, centerZ);
-            scene.add(currentBox);
-        }
-
-        function animate() {
-            requestAnimationFrame(animate);
-            controls.update();
-            renderer.render(scene, camera);
-            labelRenderer.render(scene, camera);
-        }
-
-        window.addEventListener('resize', () => {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            labelRenderer.setSize(window.innerWidth, window.innerHeight);
-        });
-
-        init();
-    </script>
+    function animate() { if (!hasWebGL) return; requestAnimationFrame(animate); controls.update(); renderer.render(scene,camera); labelRenderer.render(scene,camera); }
+    window.addEventListener('resize', () => { if (!hasWebGL) return; camera.aspect = window.innerWidth/window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth,window.innerHeight); labelRenderer.setSize(window.innerWidth,window.innerHeight); });
+    init();
+</script>
 </body>
 </html>
