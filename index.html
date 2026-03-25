@@ -53,7 +53,7 @@
 <body class="text-white">
 
 <!-- Compact floating panel — bottom right, minimal footprint -->
-<div id="ui-panel" class="fixed bottom-3 right-3 left-3 sm:left-auto z-10 pointer-events-auto bg-[#2a2a3e] bg-opacity-90 backdrop-blur-sm rounded-lg shadow-xl max-w-[420px]">
+<div id="ui-panel" class="fixed bottom-3 right-3 z-10 pointer-events-auto bg-[#2a2a3e] bg-opacity-90 backdrop-blur-sm rounded-lg shadow-xl">
 
     <!-- Title + mode -->
     <div class="bg-[#3a3a52] px-2 py-1 flex items-center justify-between rounded-t-lg gap-2">
@@ -313,7 +313,7 @@
             document.body.appendChild(labelRenderer.domElement);
 
             controls = new OrbitControls(camera, renderer.domElement);
-            controls.target.set(0, 5, 0);
+            controls.target.set(5, 5, 3);
             const cv = new THREE.Vector3().subVectors(camera.position, controls.target);
             const ipa = Math.atan2(Math.sqrt(cv.x*cv.x + cv.z*cv.z), cv.y);
             controls.minPolarAngle = ipa;
