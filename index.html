@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Minecraft Fill Command Visualizer</title>
+    <title>Minecraft Fill Command Visualizer v8</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&display=swap" rel="stylesheet">
     <style>
@@ -246,6 +246,15 @@
 
                 document.addEventListener('touchmove', onMove, { passive: false });
                 document.addEventListener('touchend', onEnd);
+            });
+
+            // Double-click to reset to zero (or ground level for Y)
+            input.addEventListener('dblclick', (e) => {
+                e.preventDefault();
+                const isY = input.dataset.isY === 'true';
+                const resetVal = isY && currentMode === 'world' ? getGroundLevel() : 0;
+                applyDragValue(input, resetVal);
+                input.blur();
             });
 
             // Typing mode — click to focus, type a value
