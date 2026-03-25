@@ -393,7 +393,7 @@
         const line = (pts,col) => { scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineBasicMaterial({ color:col, linewidth:3 }))); };
 
         line([new THREE.Vector3(-len,0,0), new THREE.Vector3(len,0,0)], 0xf87171);
-        let l; l = mkLabel('+X East','text-red-400'); l.position.set(len,0,0); scene.add(l);
+        let l; l = mkLabel('+X East','text-red-400'); l.position.set(len,-1.5,0); scene.add(l);
         l = mkLabel('-X West','text-red-400'); l.position.set(-len,0,0); scene.add(l);
 
         line([new THREE.Vector3(0,-len,0), new THREE.Vector3(0,len,0)], 0x4ade80);
@@ -401,7 +401,7 @@
         l = mkLabel('-Y Down','text-green-400'); l.position.set(0,-len,0); scene.add(l);
 
         line([new THREE.Vector3(0,0,-len), new THREE.Vector3(0,0,len)], 0x60a5fa);
-        l = mkLabel('+Z South','text-blue-400'); l.position.set(0,0,len); scene.add(l);
+        l = mkLabel('+Z South','text-blue-400'); l.position.set(0,1.5,len); scene.add(l);
         l = mkLabel('-Z North','text-blue-400'); l.position.set(0,0,-len); scene.add(l);
     }
 
